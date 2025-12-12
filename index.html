@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Equalizer</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #121212; /* Dark Mode */
+            color: white;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .player-container {
+            width: 100%;
+            max-width: 400px;
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+
+        h1 { margin-top: 0; font-size: 24px; color: #bb86fc; }
+
+        /* File Input */
+        .file-upload { margin: 20px 0; }
+        input[type="file"] { display: none; }
+        
+        .custom-file-upload {
+            border: 2px solid #bb86fc;
+            display: inline-block;
+            padding: 12px 24px;
+            cursor: pointer;
+            border-radius: 50px;
+            font-weight: bold;
+            color: #bb86fc;
+            transition: 0.2s;
+        }
+        .custom-file-upload:hover {
+            background-color: #bb86fc;
+            color: #121212;
+        }
+
+        #songTitle {
+            margin: 20px 0;
+            font-size: 14px;
+            color: #ccc;
+            min-height: 20px;
+        }
+
+        /* Sliders */
+        .slider-container { margin: 25px 0; text-align: left; }
+        
+        label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        input[type=range] {
+            width: 100%;
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #03dac6;
+            cursor: pointer;
+            margin-top: -8px; 
+        }
+        
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #444;
+            border-radius: 2px;
+        }
+
+        audio { width: 100%; margin-top: 20px; outline: none; }
+        
+        .note { font-size: 11px; color: #666; margin-top: 30px; }
+    </style>
+</head>
+<body>
+
+    <div class="player-container">
+        <h1>🎚️ My Equalizer</h1>
+
+        <div class="file-upload">
+            <label for="audioFile" class="custom-file-upload">
+                📂 Choose Song
+            </label>
+            <input type="file" id="audioFile" accept="audio/*, .mp3, .wav, .m4a, .aac, .ogg">
+        </div>
+
+        <div id="songTitle">Select a file to begin</div>
+
+        <div class="slider-container">
+            <label><span>🔊 Bass</span><span id="bassValue">0 dB</span></label>
+            <input type="range" id="bassSlider" min="-10" max="20" value="0">
+        </div>
+
+        <div class="slider-container">
+            <label><span>🎻 Treble</span><span id="trebleValue">0 dB</span></label>
+            <input type="range" id="trebleSlider" min="-10" max="20" value="0">
+        </div>
+
+        <div class="slider-container">
+            <label><span>🔈 Volume</span></label>
+            <input type="range" id="volSlider" min="0" max="1" step="0.01" value="1">
+        </div>
+
+        <audio id="audioPlayer" controls></audio>
+        
+        <p class="note">Plays files from your device storage.</p>
+    </div>
+
+    <script>
+        // 1. REGISTER SERVICE WORKER
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
+        }
+
+        // 2. AUDIO LOGIC
+        const fileInput = document.getElementById('audioFile');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const bassSlider = document.getElementById('bassSlider');
+        const trebleSlider = document.getElementById('trebleSlider');
+        const volSlider = document.getElementById('volSlider');
+        
+        let audioContext;
+        let source;
+        let bassFilter;
+        let trebleFilter;
+
+        function initAudio() {
+            if (!audioContext) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                source = audioContext.createMediaElementSource(audioPlayer);
+
+                bassFilter = audioContext.createBiquadFilter();
+                bassFilter.type = "lowshelf";
+                bassFilter.frequency.value = 200; 
+
+                trebleFilter = audioContext.createBiquadFilter();
+                trebleFilter.type = "highshelf";
+                trebleFilter.frequency.value = 2000; 
+
+                source.connect(bassFilter);
+                bassFilter.connect(trebleFilter);
+                trebleFilter.connect(audioContext.destination);
+            }
+        }
+
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                initAudio();
+                document.getElementById('songTitle').textContent = "🎵 " + file.name;
+                const fileURL = URL.createObjectURL(file);
+                audioPlayer.src = fileURL;
+                if (audioContext.state === 'suspended') audioContext.resume();
+                audioPlayer.play();
+            }
+        });
+
+        bassSlider.addEventListener('input', function() {
+            if (bassFilter) {
+                bassFilter.gain.value = this.value;
+                document.getElementById('bassValue').innerText = (this.value > 0 ? "+" : "") + this.value + " dB";
+            }
+        });
+
+        trebleSlider.addEventListener('input', function() {
+            if (trebleFilter) {
+                trebleFilter.gain.value = this.value;
+                document.getElementById('trebleValue').innerText = (this.value > 0 ? "+" : "") + this.value + " dB";
+            }
+        });
+        
+        volSlider.addEventListener('input', function() {
+            audioPlayer.volume = this.value;
+        });
+    </script>
+</body>
+</html>
