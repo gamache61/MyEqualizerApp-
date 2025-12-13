@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MyEqApp Ultimate</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #121212;
+            color: white;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; 
+            min-height: 100vh;
+            overflow-y: auto; 
+        }
+
+        .player-container {
+            width: 100%;
+            max-width: 400px;
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 50px;
+            position: relative;
+        }
+
+        /* HEADER & TRAFFIC LIGHT */
+        .header-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        h1 { margin: 0; font-size: 22px; color: #bb86fc; }
+
+        .status-light {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background-color: #ff0000; /* RED (Default) */
+            box-shadow: 0 0 10px #ff0000;
+            position: absolute;
+            right: 10px;
+            top: 2px;
+            transition: 0.3s;
+            border: 2px solid #333;
+        }
+
+        .status-light.green {
+            background-color: #00ff00; /* GREEN */
+            box-shadow: 0 0 15px #00ff00;
+        }
+
+        /* START BUTTON */
+        #startBtn {
+            background-color: #bb86fc;
+            color: black;
+            font-weight: bold;
+            font-size: 16px;
+            padding: 20px;
+            width: 100%;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .hidden { display: none !important; }
+
+        /* BIG PLAY BUTTON */
+        #masterPlayBtn {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: #2a2a2a;
+            border: 4px solid #555;
+            color: white;
+            font-size: 40px;
+            cursor: pointer;
+            margin: 15px auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #masterPlayBtn.playing {
+            background: #bb86fc;
+            color: #000;
+            border-color: #bb86fc;
+            box-shadow: 0 0 25px rgba(187, 134, 252, 0.4);
+        }
+
+        /* FILE CONTROLS */
+        .file-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .custom-file-upload {
+            border: 2px solid #03dac6;
+            display: inline-block;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 50px;
+            font-weight: bold;
+            color: #03dac6;
+            font-size: 14px;
+        }
+        input[type="file"] { display: none; }
+
+        #saveBtn {
+            background-color: #333;
+            color: #aaa;
+            border: 2px solid #555;
+            padding: 10px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* LIBRARY DROPDOWN */
+        .library-row {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        #librarySelect {
+            width: 70%;
+            padding: 10px;
+            border-radius: 10px;
+            background: #2a2a2a;
+            color: white;
+            border: 1px solid #444;
+        }
+        #deleteBtn {
+            background: #cf6679;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 40px;
+        }
+
+        #songTitle {
+            margin: 10px 0;
+            font-size: 14px;
+            color: #ccc;
+            min-height: 20px;
+        }
+
+        /* EQ Grid */
+        .eq-grid {
+            display: flex;
+            justify-content: space-between;
+            height: 150px;
+            margin-bottom: 20px;
+            padding: 0 5px;
+        }
+
+        .eq-band {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 18%;
+        }
+
+        input[type=range].vertical {
+            -webkit-appearance: none;
+            width: 120px; 
+            height: 4px;
+            background: #444;
+            transform: rotate(-90deg);
+            margin-top: 60px;
+            margin-bottom: 60px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #bb86fc;
+            cursor: pointer;
+        }
+
+        .band-label { font-size: 10px; color: #888; margin-top: -50px; }
+
+        /* BACKUP AUDIO BAR (Visible but subtle) */
+        audio { 
+            width: 100%; 
+            margin-top: 20px; 
+            filter: invert(1); 
+            opacity: 0.5;
+            height: 30px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="player-container">
+        
+        <div class="header-row">
+            <h1>🎚️ MyEqApp</h1>
+            <div id="statusLight" class="status-light"></div>
+        </div>
+
+        <button id="startBtn" onclick="initAudioEngine()">👉 TAP TO ACTIVATE</button>
+
+        <div id="controlsArea" class="hidden">
+            
+            <div class="file-controls">
+                <label for="audioFile" class="custom-file-upload">📂 New File</label>
+                <input type="file" id="audioFile">
+                <button id="saveBtn" onclick="saveSong()">💾 Save</button>
+            </div>
+
+            <div class="library-row">
+                <select id="librarySelect" onchange="loadFromLibrary()">
+                    <option value="">📂 Saved Songs...</option>
+                </select>
+                <button id="deleteBtn" onclick="deleteSong()">🗑️</button>
+            </div>
+
+            <div id="songTitle">Select a song...</div>
+
+            <button id="masterPlayBtn" onclick="togglePlay()">▶</button>
+
+            <div class="eq-grid">
+                <div class="eq-band"><input type="range" class="vertical" id="eq60" min="-15" max="15" value="0"><span class="band-label">SUB</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq250" min="-15" max="15" value="0"><span class="band-label">LOW</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq1000" min="-15" max="15" value="0"><span class="band-label">MID</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq4000" min="-15" max="15" value="0"><span class="band-label">HIGH</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq12000" min="-15" max="15" value="0"><span class="band-label">AIR</span></div>
+            </div>
+
+            <audio id="audioPlayer" controls></audio>
+        </div>
+    </div>
+
+    <script>
+        // Force Clear Cache of SW
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+                for(let reg of regs) reg.unregister();
+            });
+        }
+
+        const audioPlayer = document.getElementById('audioPlayer');
+        const startBtn = document.getElementById('startBtn');
+        const controlsArea = document.getElementById('controlsArea');
+        const masterPlayBtn = document.getElementById('masterPlayBtn');
+        const librarySelect = document.getElementById('librarySelect');
+        const saveBtn = document.getElementById('saveBtn');
+        const statusLight = document.getElementById('statusLight');
+        
+        let audioContext;
+        let source;
+        let filters = [];
+        const frequencies = [60, 250, 1000, 4000, 12000];
+        
+        let db;
+        let currentFileBlob = null;
+        let currentFileName = "";
+
+        function initAudioEngine() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+
+                source = audioContext.createMediaElementSource(audioPlayer);
+
+                filters = frequencies.map((freq, index) => {
+                    const filter = audioContext.createBiquadFilter();
+                    filter.type = index === 0 ? 'lowshelf' : index === 4 ? 'highshelf' : 'peaking';
+                    filter.frequency.value = freq;
+                    return filter;
+                });
+
+                let currentNode = source;
+                filters.forEach(filter => {
+                    currentNode.connect(filter);
+                    currentNode = filter;
+                });
+                currentNode.connect(audioContext.destination);
+
+                startBtn.style.display = 'none';
+                controlsArea.classList.remove('hidden');
+
+                setupDB();
+
+            } catch (e) {
+                alert("Error: " + e.message);
+            }
+        }
+
+        function setupDB() {
+            const request = indexedDB.open("MyEqLib", 1);
+            request.onupgradeneeded = e => {
+                db = e.target.result;
+                db.createObjectStore("songs", { keyPath: "id" });
+            };
+            request.onsuccess = e => {
+                db = e.target.result;
+                refreshLibrary();
+            };
+        }
+
+        function saveSong() {
+            if(!currentFileBlob) return alert("Select file first");
+            const tx = db.transaction(["songs"], "readwrite");
+            tx.objectStore("songs").add({
+                id: Date.now(),
+                name: currentFileName,
+                data: currentFileBlob
+            });
+            tx.oncomplete = () => {
+                alert("Saved!");
+                refreshLibrary();
+                saveBtn.style.color = "#aaa";
+            };
+        }
+
+        function refreshLibrary() {
+            const store = db.transaction("songs").objectStore("songs");
+            const req = store.getAll();
+            req.onsuccess = e => {
+                const songs = e.target.result;
+                librarySelect.innerHTML = '<option value="">📂 Saved Songs...</option>';
+                songs.forEach(song => {
+                    const opt = document.createElement('option');
+                    opt.value = song.id;
+                    opt.text = song.name;
+                    librarySelect.appendChild(opt);
+                });
+            };
+        }
+
+        function loadFromLibrary() {
+            const id = parseInt(librarySelect.value);
+            if(!id) return;
+            const store = db.transaction("songs").objectStore("songs");
+            store.get(id).onsuccess = e => {
+                const song = e.target.result;
+                if(song) loadBlob(song.data, song.name);
+            };
+        }
+
+        function deleteSong() {
+            const id = parseInt(librarySelect.value);
+            if(!id) return alert("Select song to delete");
+            if(confirm("Delete this?")) {
+                const tx = db.transaction(["songs"], "readwrite");
+                tx.objectStore("songs").delete(id);
+                tx.oncomplete = () => {
+                    refreshLibrary();
+                    librarySelect.value = "";
+                };
+            }
+        }
+
+        document.getElementById('audioFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            loadBlob(file, file.name);
+            saveBtn.style.color = "#bb86fc";
+            saveBtn.style.borderColor = "#bb86fc";
+        });
+
+        function loadBlob(blob, name) {
+            currentFileBlob = blob;
+            currentFileName = name;
+            document.getElementById('songTitle').textContent = name;
+            
+            const url = URL.createObjectURL(blob);
+            audioPlayer.src = url;
+            
+            masterPlayBtn.innerHTML = "▶";
+            masterPlayBtn.classList.remove('playing');
+            statusLight.classList.remove('green');
+        }
+
+        function togglePlay() {
+            if(audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            if(audioPlayer.paused) {
+                audioPlayer.play()
+                    .then(() => {
+                        masterPlayBtn.innerHTML = "⏸";
+                        masterPlayBtn.classList.add('playing');
+                        statusLight.classList.add('green');
+                    })
+                    .catch(e => alert("Please select a song first!"));
+            } else {
+                audioPlayer.pause();
+                masterPlayBtn.innerHTML = "▶";
+                masterPlayBtn.classList.remove('playing');
+                statusLight.classList.remove('green');
+            }
+        }
+
+        // --- Sync Everything ---
+        audioPlayer.addEventListener('play', () => {
+            masterPlayBtn.innerHTML = "⏸";
+            masterPlayBtn.classList.add('playing');
+            statusLight.classList.add('green');
+        });
+
+        audioPlayer.addEventListener('pause', () => {
+            masterPlayBtn.innerHTML = "▶";
+            masterPlayBtn.classList.remove('playing');
+            statusLight.classList.remove('green');
+        });
+
+        audioPlayer.addEventListener('ended', () => {
+            masterPlayBtn.innerHTML = "▶";
+            masterPlayBtn.classList.remove('playing');
+            statusLight.classList.remove('green');
+        });
+
+        const eqIds = ['eq60', 'eq250', 'eq1000', 'eq4000', 'eq12000'];
+        eqIds.forEach((id, index) => {
+            document.getElementById(id).addEventListener('input', function() {
+                if(filters[index]) filters[index].gain.value = this.value;
+            });
+        });
+
+    </script>
+</body>
+</html>
