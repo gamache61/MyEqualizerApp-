@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Equalizer</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #121212;
+            color: white;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .player-container {
+            width: 100%;
+            max-width: 400px;
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+
+        h1 { margin-top: 0; font-size: 22px; color: #bb86fc; }
+
+        /* START BUTTON (Crucial for iOS) */
+        #startBtn {
+            background-color: #bb86fc;
+            color: black;
+            font-weight: bold;
+            font-size: 16px;
+            padding: 15px;
+            width: 100%;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        .hidden { display: none; }
+
+        .file-upload { margin: 20px 0; }
+        input[type="file"] { display: none; }
+        
+        .custom-file-upload {
+            border: 2px solid #03dac6;
+            display: inline-block;
+            padding: 12px 24px;
+            cursor: pointer;
+            border-radius: 50px;
+            font-weight: bold;
+            color: #03dac6;
+            width: 80%;
+        }
+
+        #songTitle {
+            margin: 15px 0;
+            font-size: 13px;
+            color: #ccc;
+            min-height: 20px;
+            word-break: break-all;
+        }
+
+        .slider-container { margin: 20px 0; text-align: left; }
+        
+        label { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        
+        input[type=range] {
+            width: 100%;
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #bb86fc;
+            cursor: pointer;
+            margin-top: -8px; 
+        }
+        
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #444;
+            border-radius: 2px;
+        }
+
+        audio { width: 100%; margin-top: 15px; outline: none; }
+        
+        /* Debug Log */
+        #logArea {
+            margin-top: 20px;
+            background: #000;
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: left;
+            height: 60px;
+            overflow-y: scroll;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="player-container">
+        <h1>🎚️ My Equalizer</h1>
+
+        <button id="startBtn" onclick="startEngine()">👉 CLICK TO START ENGINE</button>
+
+        <div id="controlsArea" class="hidden">
+            <div class="file-upload">
+                <label for="audioFile" class="custom-file-upload">
+                    📂 Choose Song
+                </label>
+                <input type="file" id="audioFile" accept="audio/*, .mp3, .wav, .m4a, .aac, .ogg">
+            </div>
+
+            <div id="songTitle">No song selected</div>
+
+            <div class="slider-container">
+                <label><span>Bass</span><span id="bassValue">0</span></label>
+                <input type="range" id="bassSlider" min="-10" max="20" value="0">
+            </div>
+
+            <div class="slider-container">
+                <label><span>Treble</span><span id="trebleValue">0</span></label>
+                <input type="range" id="trebleSlider" min="-10" max="20" value="0">
+            </div>
+
+            <audio id="audioPlayer" controls></audio>
+        </div>
+
+        <div id="logArea">System Ready. Click Start.</div>
+    </div>
+
+    <script>
+        // PWA Register
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
+        }
+
+        const logArea = document.getElementById('logArea');
+        function log(msg) {
+            logArea.innerHTML += ">> " + msg + "<br>";
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        const audioPlayer = document.getElementById('audioPlayer');
+        const bassSlider = document.getElementById('bassSlider');
+        const trebleSlider = document.getElementById('trebleSlider');
+        
+        let audioContext;
+        let source;
+        let bassFilter;
+        let trebleFilter;
+
+        // 1. MANUAL START FUNCTION
+        function startEngine() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+
+                // Build Filters immediately
+                bassFilter = audioContext.createBiquadFilter();
+                bassFilter.type = "lowshelf";
+                bassFilter.frequency.value = 200; 
+
+                trebleFilter = audioContext.createBiquadFilter();
+                trebleFilter.type = "highshelf";
+                trebleFilter.frequency.value = 2000; 
+
+                // Setup Chain
+                source = audioContext.createMediaElementSource(audioPlayer);
+                source.connect(bassFilter);
+                bassFilter.connect(trebleFilter);
+                trebleFilter.connect(audioContext.destination);
+
+                // UI Updates
+                document.getElementById('startBtn').style.display = 'none';
+                document.getElementById('controlsArea').classList.remove('hidden');
+                
+                // Force Resume (Crucial for iOS)
+                if(audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+
+                log("Engine Started! Select a file now.");
+
+            } catch (e) {
+                log("Error starting engine: " + e.message);
+            }
+        }
+
+        // 2. FILE LOAD
+        document.getElementById('audioFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            log("Loading: " + file.name);
+            document.getElementById('songTitle').textContent = file.name;
+
+            try {
+                const fileURL = URL.createObjectURL(file);
+                audioPlayer.src = fileURL;
+                
+                audioPlayer.load(); // Force reload
+                
+                // Try playing
+                const playPromise = audioPlayer.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(_ => {
+                        log("Playing...");
+                    })
+                    .catch(error => {
+                        log("Autoplay blocked. Tap Play button manually.");
+                    });
+                }
+            } catch (err) {
+                log("Error loading file: " + err.message);
+            }
+        });
+
+        // 3. SLIDERS
+        bassSlider.addEventListener('input', function() {
+            if (bassFilter) {
+                bassFilter.gain.value = this.value;
+                document.getElementById('bassValue').innerText = this.value;
+            }
+        });
+
+        trebleSlider.addEventListener('input', function() {
+            if (trebleFilter) {
+                trebleFilter.gain.value = this.value;
+                document.getElementById('trebleValue').innerText = this.value;
+            }
+        });
+
+        // Monitor Audio Context State
+        audioPlayer.addEventListener('play', () => {
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+                log("Resuming Audio Context...");
+            }
+        });
+        
+        audioPlayer.addEventListener('error', (e) => {
+            log("Player Error. Format likely not supported.");
+        });
+
+    </script>
+</body>
+</html>
