@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>My EQ Pro</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #121212;
+            color: white;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden; 
+        }
+
+        .player-container {
+            width: 100%;
+            max-width: 400px;
+            height: 100vh;
+            background: #1e1e1e;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* HEADER ROW */
+        .header-row {
+            display: flex;
+            justify-content: space-between; /* Spreads title and light apart */
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 0 10px;
+        }
+
+        h1 { margin: 0; font-size: 22px; color: #03dac6; }
+
+        /* TRAFFIC LIGHT */
+        .status-light {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #444; /* Grey when off */
+            border: 2px solid #222;
+            transition: 0.3s;
+        }
+
+        .status-light.red {
+            background-color: #ff0000;
+            box-shadow: 0 0 10px #ff0000;
+        }
+
+        .status-light.green {
+            background-color: #00ff00;
+            box-shadow: 0 0 15px #00ff00;
+        }
+
+        /* INITIAL START BUTTON */
+        #startBtn {
+            background-color: #03dac6;
+            color: black;
+            font-weight: bold;
+            font-size: 18px;
+            padding: 25px;
+            width: 100%;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            margin-top: 50px;
+            box-shadow: 0 5px 15px rgba(3, 218, 198, 0.3);
+        }
+
+        .hidden { display: none !important; }
+
+        /* VISUALIZER */
+        #visualizer {
+            width: 100%;
+            height: 80px;
+            background-color: #000;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #333;
+        }
+
+        /* BIG PLAY BUTTON */
+        #customPlayBtn {
+            width: 75px;
+            height: 75px;
+            border-radius: 50%;
+            background-color: #2a2a2a;
+            border: 3px solid #555;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px auto;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        #customPlayBtn:active { transform: scale(0.95); }
+
+        #customPlayBtn.playing {
+            border-color: #03dac6;
+            color: #03dac6;
+            box-shadow: 0 0 15px rgba(3, 218, 198, 0.2);
+        }
+
+        /* Audio element hidden */
+        audio { display: none; }
+
+        /* FILE UPLOAD */
+        .file-upload { margin: 10px 0; text-align: center; }
+        input[type="file"] { display: none; }
+        
+        .custom-file-upload {
+            border: 2px solid #bb86fc; 
+            display: inline-block; 
+            padding: 10px 30px;
+            cursor: pointer; 
+            border-radius: 50px; 
+            font-weight: bold; 
+            color: #bb86fc; 
+            font-size: 14px;
+        }
+
+        #songTitle { 
+            margin: 10px 0; 
+            font-size: 14px; 
+            color: #aaa; 
+            text-align: center; 
+            min-height: 20px; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+        }
+
+        /* EQ GRID */
+        .eq-grid { display: flex; justify-content: space-between; height: 130px; margin-bottom: 5px; padding: 0 5px; }
+        .eq-band { display: flex; flex-direction: column; align-items: center; width: 18%; position: relative; }
+        
+        input[type=range].vertical {
+            -webkit-appearance: none; width: 100px; height: 4px; background: #444;
+            transform: rotate(-90deg); transform-origin: center; margin-top: 50px; margin-bottom: 50px; cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: #03dac6; cursor: pointer; margin-top: -7px; box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        .band-label { font-size: 10px; color: #888; position: absolute; bottom: 0; }
+
+        .vol-container { text-align: left; margin-top: 10px; background: #2c2c2c; padding: 10px; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="player-container">
+        
+        <div class="header-row">
+            <h1>🎚️ My EQ Pro</h1>
+            <div id="statusLight" class="status-light red"></div>
+        </div>
+
+        <button id="startBtn" onclick="initEngine()">👉 TAP TO ACTIVATE</button>
+
+        <div id="controlsArea" class="hidden">
+
+            <canvas id="visualizer"></canvas>
+
+            <div class="file-upload">
+                <label for="audioFile" class="custom-file-upload">📂 Choose Song</label>
+                <input type="file" id="audioFile" accept="audio/*, .mp3, .wav, .m4a, .aac, .ogg">
+            </div>
+            
+            <div id="songTitle">Select a file...</div>
+
+            <button id="customPlayBtn" onclick="handlePlayClick()">▶</button>
+
+            <div class="eq-grid">
+                <div class="eq-band"><input type="range" class="vertical" id="eq60" min="-15" max="15" value="0"><span class="band-label">SUB</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq250" min="-15" max="15" value="0"><span class="band-label">LOW</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq1000" min="-15" max="15" value="0"><span class="band-label">MID</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq4000" min="-15" max="15" value="0"><span class="band-label">HIGH</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq12000" min="-15" max="15" value="0"><span class="band-label">AIR</span></div>
+            </div>
+
+            <div class="vol-container">
+                <label style="display:flex; justify-content:space-between; font-size:12px; font-weight:bold;">
+                    <span>Volume</span> <span id="gainVal">1.0</span>
+                </label>
+                <input type="range" id="gainSlider" style="width:100%" min="0.0" max="3.0" step="0.1" value="1.0">
+            </div>
+
+            <audio id="audioPlayer"></audio>
+        </div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
+
+        const audioPlayer = document.getElementById('audioPlayer');
+        const playBtn = document.getElementById('customPlayBtn');
+        const canvas = document.getElementById('visualizer');
+        const canvasCtx = canvas.getContext('2d');
+        const statusLight = document.getElementById('statusLight');
+        const controlsArea = document.getElementById('controlsArea');
+        const startBtn = document.getElementById('startBtn');
+
+        let audioContext;
+        let source;
+        let filters = [];
+        let gainNode;
+        let compressor;
+        let analyser;
+        
+        const frequencies = [60, 250, 1000, 4000, 12000];
+
+        // 1. ACTIVATE AUDIO ENGINE
+        function initEngine() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+
+                source = audioContext.createMediaElementSource(audioPlayer);
+                gainNode = audioContext.createGain();
+                compressor = audioContext.createDynamicsCompressor();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 128;
+
+                filters = frequencies.map((freq, index) => {
+                    const filter = audioContext.createBiquadFilter();
+                    filter.type = index === 0 ? 'lowshelf' : index === 4 ? 'highshelf' : 'peaking';
+                    filter.frequency.value = freq;
+                    return filter;
+                });
+
+                source.connect(gainNode);
+                let currentNode = gainNode;
+                filters.forEach(f => { currentNode.connect(f); currentNode = f; });
+                currentNode.connect(compressor);
+                compressor.connect(analyser);
+                analyser.connect(audioContext.destination);
+
+                // Hide Start Button, Show Controls
+                startBtn.classList.add('hidden');
+                controlsArea.classList.remove('hidden');
+
+                // Start Visualizer Loop
+                drawVisualizer();
+
+            } catch (e) {
+                alert("Error: " + e.message);
+            }
+        }
+
+        // 2. PLAY BUTTON LOGIC
+        function handlePlayClick() {
+            if (!audioContext) return;
+
+            // Ensure Context is awake
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            if (audioPlayer.paused) {
+                audioPlayer.play().catch(e => console.log("Select a file first"));
+            } else {
+                audioPlayer.pause();
+            }
+        }
+
+        // 3. LISTEN TO PLAYER STATE FOR LIGHTS
+        audioPlayer.addEventListener('play', () => {
+            playBtn.innerHTML = "⏸";
+            playBtn.classList.add('playing');
+            statusLight.className = "status-light green"; // Green Light
+        });
+
+        audioPlayer.addEventListener('pause', () => {
+            playBtn.innerHTML = "▶";
+            playBtn.classList.remove('playing');
+            statusLight.className = "status-light red"; // Red Light
+        });
+
+        // 4. LOAD FILE
+        document.getElementById('audioFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('songTitle').textContent = file.name;
+            audioPlayer.src = URL.createObjectURL(file);
+            
+            // Reset button look
+            playBtn.innerHTML = "▶";
+            statusLight.className = "status-light red";
+        });
+
+        // 5. SLIDERS
+        document.getElementById('gainSlider').addEventListener('input', function() {
+            if(gainNode) { gainNode.gain.value = this.value; document.getElementById('gainVal').innerText = this.value; }
+        });
+
+        const eqIds = ['eq60', 'eq250', 'eq1000', 'eq4000', 'eq12000'];
+        eqIds.forEach((id, index) => {
+            document.getElementById(id).addEventListener('input', function() {
+                if(filters[index]) filters[index].gain.value = this.value;
+            });
+        });
+
+        // 6. VISUALIZER LOOP
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+            if(!analyser) return;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            canvasCtx.fillStyle = '#000';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let x = 0;
+            for(let i = 0; i < bufferLength; i++) {
+                let barHeight = (dataArray[i] / 255) * canvas.height;
+                canvasCtx.fillStyle = `rgb(${barHeight + 100}, 50, 200)`;
+                canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
+        }
+    </script>
+</body>
+</html>
