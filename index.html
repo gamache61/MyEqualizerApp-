@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>My EQ Pro</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #121212;
+            color: white;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden; 
+        }
+
+        .player-container {
+            width: 100%;
+            max-width: 400px;
+            height: 100vh;
+            background: #1e1e1e;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        h1 { margin: 5px 0; font-size: 20px; color: #03dac6; text-align: center; }
+
+        /* START BUTTON */
+        #startBtn {
+            background-color: #03dac6;
+            color: black;
+            font-weight: bold;
+            font-size: 16px;
+            padding: 20px;
+            width: 90%;
+            margin: auto;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        .hidden { display: none; }
+
+        /* VISUALIZER CANVAS */
+        #visualizer {
+            width: 100%;
+            height: 80px;
+            background-color: #000;
+            border-radius: 10px;
+            margin-bottom: 5px;
+            border: 1px solid #333;
+        }
+
+        /* OUTPUT SELECTOR (Hidden on iOS via JS) */
+        .output-selector {
+            margin: 5px 0;
+            text-align: center;
+            display: none; /* Hidden by default */
+        }
+        #audioOutputSelect {
+            width: 90%;
+            padding: 8px;
+            border-radius: 8px;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            font-size: 12px;
+        }
+
+        .file-upload { margin: 5px 0; text-align: center; }
+        input[type="file"] { display: none; }
+        
+        .custom-file-upload {
+            border: 2px solid #bb86fc;
+            display: inline-block;
+            padding: 8px 20px;
+            cursor: pointer;
+            border-radius: 50px;
+            font-weight: bold;
+            color: #bb86fc;
+            width: 80%;
+            font-size: 14px;
+        }
+
+        #songTitle {
+            margin: 5px 0;
+            font-size: 12px;
+            color: #ccc;
+            text-align: center;
+            min-height: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* EQ GRID */
+        .eq-grid {
+            display: flex;
+            justify-content: space-between;
+            height: 140px;
+            margin-bottom: 5px;
+            padding: 0 5px;
+        }
+
+        .eq-band {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 18%;
+            position: relative;
+        }
+
+        input[type=range].vertical {
+            -webkit-appearance: none;
+            width: 110px;
+            height: 4px;
+            background: #444;
+            transform: rotate(-90deg);
+            transform-origin: center;
+            margin-top: 55px; 
+            margin-bottom: 55px; 
+            cursor: pointer;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #03dac6;
+            cursor: pointer;
+            margin-top: -7px; 
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        .band-label { 
+            font-size: 10px; 
+            color: #888; 
+            position: absolute;
+            bottom: 0;
+        }
+
+        .vol-container {
+            text-align: left;
+            margin-top: 5px;
+            background: #2c2c2c;
+            padding: 8px;
+            border-radius: 10px;
+        }
+
+        audio { width: 100%; margin-top: 5px; outline: none; }
+    </style>
+</head>
+<body>
+
+    <div class="player-container">
+        <h1>🎚️ My EQ Pro</h1>
+
+        <button id="startBtn" onclick="initEngine()">👉 TAP TO START</button>
+
+        <div id="controlsArea" class="hidden">
+            <div class="output-selector" id="outputContainer">
+                <select id="audioOutputSelect" onchange="changeAudioDestination()">
+                    <option value="">🔄 Auto (Default)</option>
+                </select>
+            </div>
+
+            <canvas id="visualizer"></canvas>
+
+            <div class="file-upload">
+                <label for="audioFile" class="custom-file-upload">
+                    📂 Load Song
+                </label>
+                <input type="file" id="audioFile" accept="audio/*, .mp3, .wav, .m4a, .aac, .ogg">
+            </div>
+
+            <div id="songTitle">Select a file...</div>
+
+            <div class="eq-grid">
+                <div class="eq-band"><input type="range" class="vertical" id="eq60" min="-15" max="15" value="0"><span class="band-label">SUB</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq250" min="-15" max="15" value="0"><span class="band-label">LOW</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq1000" min="-15" max="15" value="0"><span class="band-label">MID</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq4000" min="-15" max="15" value="0"><span class="band-label">HIGH</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq12000" min="-15" max="15" value="0"><span class="band-label">AIR</span></div>
+            </div>
+
+            <div class="vol-container">
+                <label style="display:flex; justify-content:space-between; font-size:12px; font-weight:bold;">
+                    <span>Booster</span> <span id="gainVal">1.0</span>
+                </label>
+                <input type="range" id="gainSlider" style="width:100%" min="0.5" max="3.0" step="0.1" value="1.0">
+            </div>
+
+            <audio id="audioPlayer" controls></audio>
+        </div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
+        }
+
+        const audioPlayer = document.getElementById('audioPlayer');
+        const canvas = document.getElementById('visualizer');
+        const canvasCtx = canvas.getContext('2d');
+        const outputSelect = document.getElementById('audioOutputSelect');
+        const outputContainer = document.getElementById('outputContainer');
+
+        let audioContext;
+        let source;
+        let filters = [];
+        let gainNode;
+        let compressor;
+        let analyser;
+        let isEngineStarted = false;
+
+        const frequencies = [60, 250, 1000, 4000, 12000];
+
+        function initEngine() {
+            if(isEngineStarted) return;
+
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+
+                source = audioContext.createMediaElementSource(audioPlayer);
+                gainNode = audioContext.createGain();
+                compressor = audioContext.createDynamicsCompressor();
+                analyser = audioContext.createAnalyser();
+
+                compressor.threshold.value = -24;
+                compressor.ratio.value = 12;
+
+                analyser.fftSize = 128;
+
+                filters = frequencies.map((freq, index) => {
+                    const filter = audioContext.createBiquadFilter();
+                    if (index === 0) filter.type = 'lowshelf';
+                    else if (index === frequencies.length - 1) filter.type = 'highshelf';
+                    else filter.type = 'peaking';
+                    filter.frequency.value = freq;
+                    return filter;
+                });
+
+                source.connect(gainNode);
+                let currentNode = gainNode;
+                filters.forEach(f => {
+                    currentNode.connect(f);
+                    currentNode = f;
+                });
+                currentNode.connect(compressor);
+                compressor.connect(analyser);
+                analyser.connect(audioContext.destination);
+
+                isEngineStarted = true;
+                document.getElementById('startBtn').style.display = 'none';
+                document.getElementById('controlsArea').classList.remove('hidden');
+
+                drawVisualizer();
+                
+                // Only show speaker selector if browser supports it (Not iOS)
+                if (typeof audioPlayer.setSinkId !== 'undefined') {
+                    outputContainer.style.display = 'block';
+                    getAudioDevices();
+                }
+
+            } catch (e) {
+                alert("Error starting engine: " + e.message);
+            }
+        }
+
+        async function getAudioDevices() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
+                if(audioOutputs.length > 0) {
+                    outputSelect.innerHTML = '<option value="">🔄 Auto (Default)</option>';
+                    audioOutputs.forEach(device => {
+                        const option = document.createElement('option');
+                        option.value = device.deviceId;
+                        option.text = device.label || `Speaker ${outputSelect.length}`;
+                        outputSelect.appendChild(option);
+                    });
+                }
+            } catch (err) {
+                console.log("Device selection not available");
+            }
+        }
+
+        function changeAudioDestination() {
+            const deviceId = outputSelect.value;
+            if (typeof audioPlayer.setSinkId !== 'undefined') {
+                audioPlayer.setSinkId(deviceId).catch(e => console.log(e));
+            }
+        }
+
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+            if(!analyser) return;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            canvasCtx.fillStyle = '#000';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
+
+            for(let i = 0; i < bufferLength; i++) {
+                barHeight = (dataArray[i] / 255) * canvas.height;
+                canvasCtx.fillStyle = `rgb(${barHeight + 100}, 50, 200)`;
+                canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
+        }
+
+        document.getElementById('audioFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('songTitle').textContent = file.name;
+            const fileURL = URL.createObjectURL(file);
+            audioPlayer.src = fileURL;
+            
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            audioPlayer.play().catch(e => console.log("Tap play button"));
+        });
+
+        document.getElementById('gainSlider').addEventListener('input', function() {
+            if(gainNode) {
+                gainNode.gain.value = this.value;
+                document.getElementById('gainVal').innerText = this.value;
+            }
+        });
+
+        const eqIds = ['eq60', 'eq250', 'eq1000', 'eq4000', 'eq12000'];
+        eqIds.forEach((id, index) => {
+            document.getElementById(id).addEventListener('input', function() {
+                if(filters[index]) filters[index].gain.value = this.value;
+            });
+        });
+
+        audioPlayer.addEventListener('play', () => {
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        });
+
+    </script>
+</body>
+</html>
