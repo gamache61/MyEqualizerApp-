@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MyEqApp</title>
+    <link rel="manifest" id="my-manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+    <style>
+        body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
+        .hidden { display: none; }
+        button { background: #bb86fc; padding: 15px; border-radius: 10px; border: none; cursor: pointer; width: 100%; font-weight: bold; }
+        .status-light { width: 12px; height: 12px; border-radius: 50%; background: red; display: inline-block; margin-left: 10px; }
+        .status-light.green { background: #00ff00; box-shadow: 0 0 10px #00ff00; }
+    </style>
+</head>
+<body>
+    <h1>🎚️ MyEqApp <div id="statusLight" class="status-light"></div></h1>
+    <button id="startBtn" onclick="initAudioEngine()">ACTIVATE ENGINE</button>
+    <div id="controlsArea" class="hidden">
+        <p>Engine Active. PWA ID: /MyEqualizerApp-/</p>
+        <audio id="audioPlayer" controls></audio>
+    </div>
+
+    <script>
+        // SERVICE WORKER & CACHE BUSTING
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                const manifest = document.getElementById('my-manifest');
+                manifest.setAttribute('href', 'manifest.json?v=' + Date.now()); // Forces fresh manifest fetch
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    console.log("SW Registered");
+                });
+            });
+        }
+
+        function initAudioEngine() {
+            document.getElementById('startBtn').classList.add('hidden');
+            document.getElementById('controlsArea').classList.remove('hidden');
+            document.getElementById('statusLight').classList.add('green');
+        }
+
+        // DEBUGGER: This checks what the browser REALLY sees
+        async function debugMimeType() {
+            const file = './icon-192.png';
+            try {
+                const res = await fetch(file);
+                const type = res.headers.get('content-type');
+                console.log(`FILE CHECK: ${file} is being served as: ${type}`);
+                if (type.includes('jpeg')) {
+                    console.error("ALERT: Your file is internally a JPEG. Please convert it to a true PNG.");
+                }
+            } catch (e) { console.error("Fetch failed."); }
+        }
+        debugMimeType();
+    </script>
+</body>
+</html>
