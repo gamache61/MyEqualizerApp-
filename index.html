@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MyEqApp</title>
+    
+    <link rel="manifest" id="my-manifest" href="manifest.json">
+    
+    <meta name="theme-color" content="#121212">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="./icon192.png">
+
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #121212; color: white; margin: 0; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; overflow-y: auto; }
+        .player-container { width: 100%; max-width: 400px; background: #1e1e1e; padding: 20px; border-radius: 20px; text-align: center; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h1 { color: #bb86fc; margin-bottom: 20px; letter-spacing: 1px; }
+        #startBtn { background-color: #bb86fc; color: black; font-weight: bold; padding: 15px; width: 100%; border: none; border-radius: 12px; cursor: pointer; font-size: 16px; }
+        .hidden { display: none !important; }
+        .status-light { width: 12px; height: 12px; border-radius: 50%; background: red; display: inline-block; margin-left: 10px; transition: 0.3s; }
+        .status-light.green { background: #00ff00; box-shadow: 0 0 10px #00ff00; }
+        
+        /* Basic Player Styling */
+        .controls-box { background: #2a2a2a; padding: 15px; border-radius: 15px; margin-top: 15px; border: 1px solid #444; }
+        audio { width: 100%; margin-top: 15px; filter: invert(1); opacity: 0.5; }
+    </style>
+</head>
+<body>
+
+    <div class="player-container">
+        <h1>🎚️ MyEqApp <div id="statusLight" class="status-light"></div></h1>
+        <button id="startBtn" onclick="initAudioEngine()">ACTIVATE AUDIO ENGINE</button>
+        
+        <div id="controlsArea" class="hidden">
+            <div class="controls-box">
+                <p>Engine Active & PWA v9.6 Loaded</p>
+                <audio id="audioPlayer" controls></audio>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- SERVICE WORKER & MANIFEST CACHE BUSTING ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // FORCE MANIFEST DETECTION: Appending a timestamp bypasses browser cache
+                const manifest = document.getElementById('my-manifest');
+                manifest.setAttribute('href', 'manifest.json?v=' + Date.now());
+
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    console.log("MyEqApp v9.6 SW Registered");
+                    
+                    // Logic to handle updates immediately
+                    reg.onupdatefound = () => {
+                        const installingWorker = reg.installing;
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                if (confirm("New version available with screenshots! Reload now?")) {
+                                    installingWorker.postMessage({ type: 'SKIP_WAITING' });
+                                    window.location.reload();
+                                }
+                            }
+                        };
+                    };
+                });
+            });
+        }
+
+        function initAudioEngine() {
+            document.getElementById('startBtn').classList.add('hidden');
+            document.getElementById('controlsArea').classList.remove('hidden');
+            document.getElementById('statusLight').classList.add('green');
+        }
+
+        // --- MIME TYPE DEBUGGER ---
+        // Checks if your server is sending the icons as PNG
+        async function validateAssets() {
+            const assets = ['./icon192.png', './screenshot1.png'];
+            for (let url of assets) {
+                try {
+                    const res = await fetch(url);
+                    const type = res.headers.get('content-type');
+                    console.log(`CHECK: ${url} is served as: ${type}`);
+                    if (type && type.includes('jpeg')) {
+                        console.error(`ALERT: ${url} is internally a JPEG. Please convert to true PNG.`);
+                    }
+                } catch (e) { console.warn(`Could not reach ${url}`); }
+            }
+        }
+        validateAssets();
+    </script>
+</body>
+</html>
