@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MyEqApp</title>
+    
+    <link rel="manifest" id="my-manifest" href="manifest.json?v=8.9">
+    
+    <meta name="theme-color" content="#121212">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+
+    <style>
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: #121212; color: white; margin: 0; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; overflow-y: auto; }
+        .player-container { width: 100%; max-width: 400px; background: #1e1e1e; padding: 20px; border-radius: 20px; text-align: center; margin: 20px 10px 50px 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .header-row { display: flex; justify-content: center; align-items: center; margin-bottom: 20px; position: relative; }
+        h1 { margin: 0; font-size: 22px; color: #bb86fc; letter-spacing: 1px; }
+        .status-light { width: 14px; height: 14px; border-radius: 50%; background-color: #ff0000; box-shadow: 0 0 10px #ff0000; position: absolute; right: 5px; transition: 0.3s; border: 2px solid #333; }
+        .status-light.green { background-color: #00ff00; box-shadow: 0 0 15px #00ff00; }
+        #startBtn { background-color: #bb86fc; color: black; font-weight: bold; font-size: 16px; padding: 20px; width: 100%; border: none; border-radius: 12px; cursor: pointer; }
+        .hidden { display: none !important; }
+        .category-box, .backup-box { background: #2a2a2a; padding: 15px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #444; }
+        .cat-row, .backup-row { display: flex; gap: 8px; margin-top: 10px; }
+        #catSelect { flex-grow: 1; padding: 10px; background: #121212; color: #03dac6; border: 1px solid #03dac6; border-radius: 8px; font-weight: bold; }
+        .btn-small { padding: 8px 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; font-size: 12px; }
+        .btn-add { background: #03dac6; color: #000; }
+        .btn-del { background: #cf6679; color: #fff; }
+        .btn-backup { background: #444; color: #bbb; border: 1px solid #666; flex: 1; }
+        #masterPlayBtn { width: 85px; height: 85px; border-radius: 50%; background: #2a2a2a; border: 4px solid #555; color: white; font-size: 35px; cursor: pointer; margin: 20px auto; display: flex; justify-content: center; align-items: center; transition: transform 0.1s, background 0.3s; }
+        #masterPlayBtn.playing { background: #bb86fc; color: #000; border-color: #bb86fc; box-shadow: 0 0 25px rgba(187, 134, 252, 0.4); }
+        .file-controls { display: flex; flex-direction: column; gap: 10px; margin: 15px 0; }
+        .custom-file-upload { background: #bb86fc; padding: 14px; cursor: pointer; border-radius: 12px; color: #000; font-size: 14px; font-weight: bold; display: block; }
+        input[type="file"] { display: none; }
+        .library-row { display: flex; gap: 5px; margin-bottom: 15px; }
+        #librarySelect { flex-grow: 1; padding: 12px; border-radius: 10px; background: #2a2a2a; color: white; border: 1px solid #444; }
+        #deleteBtn { background: #cf6679; border: none; border-radius: 10px; cursor: pointer; width: 50px; font-size: 18px; }
+        #songTitle { font-size: 14px; color: #bb86fc; margin: 10px 0; font-weight: 500; min-height: 1.2em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .eq-grid { display: flex; justify-content: space-between; height: 160px; margin: 30px 0; }
+        .eq-band { display: flex; flex-direction: column; align-items: center; width: 18%; }
+        input[type=range].vertical { -webkit-appearance: none; width: 110px; transform: rotate(-90deg); margin: 55px 0; background: #444; height: 4px; border-radius: 5px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 22px; width: 22px; border-radius: 50%; background: #bb86fc; cursor: pointer; border: 2px solid #1e1e1e; }
+        .band-label { font-size: 10px; color: #888; font-weight: bold; margin-top: 5px; }
+        audio { width: 100%; filter: invert(1); opacity: 0.3; height: 30px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <div class="header-row"><h1>🎚️ MyEqApp</h1><div id="statusLight" class="status-light"></div></div>
+        <button id="startBtn" onclick="initAudioEngine()">👉 ACTIVATE AUDIO ENGINE</button>
+        <div id="controlsArea" class="hidden">
+            <div class="category-box">
+                <div style="font-size: 11px; color: #aaa; text-align: left; margin-bottom: 5px; font-weight: bold;">ACTIVE CATEGORY:</div>
+                <div class="cat-row">
+                    <select id="catSelect" onchange="refreshLibrary()"><option value="All Songs">All Songs</option></select>
+                    <button class="btn-small btn-add" onclick="addCategory()">+</button>
+                    <button class="btn-small btn-del" onclick="removeCategory()">-</button>
+                </div>
+            </div>
+            <div class="file-controls">
+                <label for="audioFile" class="custom-file-upload">📂 Add Songs to Category</label>
+                <input type="file" id="audioFile" multiple accept="audio/*">
+            </div>
+            <div class="library-row">
+                <select id="librarySelect" onchange="loadFromLibrary()"><option value="">📂 MyEqApp Library...</option></select>
+                <button id="deleteBtn" onclick="deleteSong()">🗑️</button>
+            </div>
+            <div id="songTitle">No song loaded</div>
+            <button id="masterPlayBtn" onclick="forcePlay()">▶</button>
+            <div class="eq-grid">
+                <div class="eq-band"><input type="range" class="vertical" id="eq60" min="-15" max="15" value="0"><span class="band-label">SUB</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq250" min="-15" max="15" value="0"><span class="band-label">LOW</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq1000" min="-15" max="15" value="0"><span class="band-label">MID</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq4000" min="-15" max="15" value="0"><span class="band-label">HIGH</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq12000" min="-15" max="15" value="0"><span class="band-label">AIR</span></div>
+            </div>
+            <audio id="audioPlayer" controls></audio>
+            <div class="backup-box">
+                <div style="font-size: 11px; color: #aaa; text-align: left; font-weight: bold;">DATA PROTECTION:</div>
+                <div class="backup-row">
+                    <button class="btn-small btn-backup" onclick="exportLibrary()">💾 Backup</button>
+                    <button class="btn-small btn-backup" onclick="document.getElementById('importFile').click()">📤 Restore</button>
+                    <input type="file" id="importFile" accept=".myeq" onchange="importLibrary(event)">
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // --- SERVICE WORKER & MANIFEST REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // FORCE MANIFEST DETECTION: Appending a timestamp bypasses the browser's manifest cache
+                const manifest = document.getElementById('my-manifest');
+                manifest.setAttribute('href', 'manifest.json?v=' + Date.now());
+
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    reg.onupdatefound = () => {
+                        const installingWorker = reg.installing;
+                        installingWorker.onstatechange = () => {
+                            // SKIP_WAITING Logic: Prompts user to update immediately
+                            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                if (confirm("Update Available (v8.9). Refresh to apply new icons?")) {
+                                    installingWorker.postMessage({ type: 'SKIP_WAITING' });
+                                    window.location.reload();
+                                }
+                            }
+                        };
+                    };
+                });
+            });
+        }
+        
+        // ... (Remaining Audio Engine and Database Logic) ...
+        const audioPlayer = document.getElementById('audioPlayer');
+        const startBtn = document.getElementById('startBtn');
+        const controlsArea = document.getElementById('controlsArea');
+        const masterPlayBtn = document.getElementById('masterPlayBtn');
+        const librarySelect = document.getElementById('librarySelect');
+        const catSelect = document.getElementById('catSelect');
+        const statusLight = document.getElementById('statusLight');
+        const eqIds = ['eq60', 'eq250', 'eq1000', 'eq4000', 'eq12000'];
+        let audioContext, source, db, filters = [];
+        const frequencies = [60, 250, 1000, 4000, 12000];
+        function saveEqSettings() { const settings = {}; eqIds.forEach(id => settings[id] = document.getElementById(id).value); localStorage.setItem('myEqSettings', JSON.stringify(settings)); }
+        function loadEqSettings() { const saved = JSON.parse(localStorage.getItem('myEqSettings')); if (saved) eqIds.forEach(id => { if(saved[id]) document.getElementById(id).value = saved[id]; }); }
+        function loadCategories() { const cats = JSON.parse(localStorage.getItem('myEqCategories')) || ["All Songs"]; catSelect.innerHTML = ""; cats.forEach(c => { const opt = document.createElement('option'); opt.value = c; opt.text = c; catSelect.appendChild(opt); }); }
+        function addCategory() { const name = prompt("Enter New Category Name:"); if (!name) return; const cats = JSON.parse(localStorage.getItem('myEqCategories')) || ["All Songs"]; if (cats.includes(name)) return alert("Category already exists."); cats.push(name); localStorage.setItem('myEqCategories', JSON.stringify(cats)); loadCategories(); catSelect.value = name; refreshLibrary(); }
+        function removeCategory() { const name = catSelect.value; if (name === "All Songs") return alert("Base category cannot be deleted."); if (!confirm(`Delete category '${name}'?`)) return; let cats = JSON.parse(localStorage.getItem('myEqCategories')) || ["All Songs"]; cats = cats.filter(c => c !== name); localStorage.setItem('myEqCategories', JSON.stringify(cats)); const tx = db.transaction(["songs"], "readwrite"); const store = tx.objectStore("songs"); store.getAll().onsuccess = e => { e.target.result.forEach(song => { if(song.category === name) { song.category = "All Songs"; store.put(song); } }); }; tx.oncomplete = () => { loadCategories(); refreshLibrary(); }; }
+        async function exportLibrary() { const tx = db.transaction("songs", "readonly"); const songs = await new Promise(r => tx.objectStore("songs").getAll().onsuccess = e => r(e.target.result)); const categories = localStorage.getItem('myEqCategories'), eq = localStorage.getItem('myEqSettings'); const backupData = { songs, categories, eq, version: 2, timestamp: Date.now() }; const blob = new Blob([JSON.stringify(backupData)], { type: "application/json" }); const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `MyEqApp_Backup.myeq`; a.click(); }
+        function importLibrary(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (e) => { try { const data = JSON.parse(e.target.result); if (data.categories) localStorage.setItem('myEqCategories', data.categories); if (data.eq) localStorage.setItem('myEqSettings', data.eq); const tx = db.transaction("songs", "readwrite"); const store = tx.objectStore("songs"); data.songs.forEach(song => store.put(song)); tx.oncomplete = () => { alert("Restore Successful!"); location.reload(); }; } catch (err) { alert("Invalid backup file."); } }; reader.readAsText(file); }
+        function initAudioEngine() { try { loadEqSettings(); loadCategories(); const AudioContext = window.AudioContext || window.webkitAudioContext; audioContext = new AudioContext(); source = audioContext.createMediaElementSource(audioPlayer); filters = frequencies.map((freq, i) => { const f = audioContext.createBiquadFilter(); f.type = i === 0 ? 'lowshelf' : i === 4 ? 'highshelf' : 'peaking'; f.frequency.value = freq; f.gain.value = document.getElementById(eqIds[i]).value; return f; }); let node = source; filters.forEach(f => { node.connect(f); node = f; }); node.connect(audioContext.destination); startBtn.classList.add('hidden'); controlsArea.classList.remove('hidden'); setupDB(); } catch (e) { alert("Engine Error: " + e.message); } }
+        function setupDB() { const request = indexedDB.open("MyEqLib", 2); request.onupgradeneeded = e => { const dbInstance = e.target.result; if (!dbInstance.objectStoreNames.contains("songs")) { dbInstance.createObjectStore("songs", { keyPath: "id" }); } }; request.onsuccess = e => { db = e.target.result; refreshLibrary(); }; }
+        document.getElementById('audioFile').addEventListener('change', async e => { const files = Array.from(e.target.files), currentCat = catSelect.value; const txRead = db.transaction(["songs"], "readonly"); const existing = await new Promise(r => txRead.objectStore("songs").getAll().onsuccess = ev => r(ev.target.result)); const txWrite = db.transaction(["songs"], "readwrite"); const storeWrite = txWrite.objectStore("songs"); let added = 0; files.forEach(file => { const isDup = existing.some(s => s.name === file.name && s.data.size === file.size); if (!isDup) { storeWrite.add({ id: Date.now() + Math.random(), name: file.name, data: file, category: currentCat }); added++; } }); txWrite.oncomplete = () => { refreshLibrary(); if(added > 0) alert(`Added ${added} songs.`); }; });
+        function refreshLibrary() { const store = db.transaction("songs").objectStore("songs"), currentCat = catSelect.value; store.getAll().onsuccess = e => { let songs = e.target.result; if (currentCat !== "All Songs") songs = songs.filter(s => s.category === currentCat); songs.sort((a, b) => a.name.localeCompare(b.name)); librarySelect.innerHTML = `<option value="">📂 ${currentCat} Library...</option>`; songs.forEach(s => { const opt = document.createElement('option'); opt.value = s.id; opt.text = s.name; librarySelect.appendChild(opt); }); }; }
+        function loadFromLibrary() { const id = parseFloat(librarySelect.value); if(!id) return; db.transaction("songs").objectStore("songs").get(id).onsuccess = e => { if(e.target.result) loadBlob(e.target.result.data, e.target.result.name); }; }
+        function deleteSong() { const id = parseFloat(librarySelect.value); if(!id || !confirm("Delete song?")) return; const tx = db.transaction(["songs"], "readwrite"); tx.objectStore("songs").delete(id); tx.oncomplete = () => { refreshLibrary(); librarySelect.value = ""; }; }
+        function loadBlob(blob, name) { document.getElementById('songTitle').textContent = name; audioPlayer.src = URL.createObjectURL(blob); audioPlayer.load(); updateUI(false); setTimeout(() => forcePlay(), 200); }
+        function forcePlay() { if(audioContext && audioContext.state === 'suspended') audioContext.resume(); if(!audioPlayer.src) return; audioPlayer.paused ? audioPlayer.play() : audioPlayer.pause(); }
+        function updateUI(playing) { masterPlayBtn.innerHTML = playing ? "⏸" : "▶"; playing ? masterPlayBtn.classList.add('playing') : masterPlayBtn.classList.remove('playing'); playing ? statusLight.classList.add('green') : statusLight.classList.remove('green'); }
+        audioPlayer.onplay = () => updateUI(true); audioPlayer.onpause = () => updateUI(false); audioPlayer.onended = () => updateUI(false);
+        eqIds.forEach((id, i) => { document.getElementById(id).oninput = function() { if(filters[i]) filters[i].gain.value = this.value; saveEqSettings(); }; });
+        
+        // MIMETYPE VALIDATION: Checks if icons are physically reachable and correctly typed
+        async function checkIcons() { 
+            const icons = ['./icon-192.png', './icon-512.png']; 
+            for (let url of icons) { 
+                try { 
+                    const res = await fetch(url); 
+                    if (!res.ok) console.warn(`Missing: ${url}`); 
+                    const ct = res.headers.get('content-type'); 
+                    if (ct && !ct.includes('image')) console.warn(`Type Mismatch: ${url} is ${ct}`); 
+                } catch (e) { console.error(`Fetch failed for ${url}`); } 
+            } 
+        }
+        checkIcons();
+    </script>
+</body>
+</html>
