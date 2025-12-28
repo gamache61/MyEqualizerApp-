@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MyEqApp</title>
+    
+    <link rel="manifest" id="my-manifest" href="manifest.json">
+    
+    <meta name="theme-color" content="#121212">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+
+    <style>
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: #121212; color: white; margin: 0; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; overflow-y: auto; }
+        .player-container { width: 100%; max-width: 400px; background: #1e1e1e; padding: 20px; border-radius: 20px; text-align: center; margin: 20px 10px 50px 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .header-row { display: flex; justify-content: center; align-items: center; margin-bottom: 20px; position: relative; }
+        h1 { margin: 0; font-size: 22px; color: #bb86fc; letter-spacing: 1px; }
+        .status-light { width: 14px; height: 14px; border-radius: 50%; background-color: #ff0000; box-shadow: 0 0 10px #ff0000; position: absolute; right: 5px; transition: 0.3s; border: 2px solid #333; }
+        .status-light.green { background-color: #00ff00; box-shadow: 0 0 15px #00ff00; }
+        #startBtn { background-color: #bb86fc; color: black; font-weight: bold; font-size: 16px; padding: 20px; width: 100%; border: none; border-radius: 12px; cursor: pointer; }
+        .hidden { display: none !important; }
+        .category-box, .backup-box { background: #2a2a2a; padding: 15px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #444; }
+        .cat-row { display: flex; gap: 8px; margin-top: 10px; }
+        #catSelect { flex-grow: 1; padding: 10px; background: #121212; color: #03dac6; border: 1px solid #03dac6; border-radius: 8px; font-weight: bold; }
+        .btn-small { padding: 8px 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; font-size: 12px; }
+        .btn-add { background: #03dac6; color: #000; }
+        .btn-del { background: #cf6679; color: #fff; }
+        #masterPlayBtn { width: 85px; height: 85px; border-radius: 50%; background: #2a2a2a; border: 4px solid #555; color: white; font-size: 35px; cursor: pointer; margin: 20px auto; display: flex; justify-content: center; align-items: center; transition: transform 0.1s, background 0.3s; }
+        #masterPlayBtn.playing { background: #bb86fc; color: #000; border-color: #bb86fc; box-shadow: 0 0 25px rgba(187, 134, 252, 0.4); }
+        .file-controls { display: flex; flex-direction: column; gap: 10px; margin: 15px 0; }
+        .custom-file-upload { background: #bb86fc; padding: 14px; cursor: pointer; border-radius: 12px; color: #000; font-size: 14px; font-weight: bold; display: block; }
+        input[type="file"] { display: none; }
+        .library-row { display: flex; gap: 5px; margin-bottom: 15px; }
+        #librarySelect { flex-grow: 1; padding: 12px; border-radius: 10px; background: #2a2a2a; color: white; border: 1px solid #444; }
+        #deleteBtn { background: #cf6679; border: none; border-radius: 10px; cursor: pointer; width: 50px; font-size: 18px; }
+        .eq-grid { display: flex; justify-content: space-between; height: 160px; margin: 30px 0; }
+        .eq-band { display: flex; flex-direction: column; align-items: center; width: 18%; }
+        input[type=range].vertical { -webkit-appearance: none; width: 110px; transform: rotate(-90deg); margin: 55px 0; background: #444; height: 4px; border-radius: 5px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 22px; width: 22px; border-radius: 50%; background: #bb86fc; cursor: pointer; border: 2px solid #1e1e1e; }
+        .band-label { font-size: 10px; color: #888; font-weight: bold; margin-top: 5px; }
+        audio { width: 100%; filter: invert(1); opacity: 0.3; height: 30px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <div class="header-row"><h1>🎚️ MyEqApp</h1><div id="statusLight" class="status-light"></div></div>
+        <button id="startBtn" onclick="initAudioEngine()">👉 ACTIVATE AUDIO ENGINE</button>
+        <div id="controlsArea" class="hidden">
+            <div class="category-box">
+                <div class="cat-row">
+                    <select id="catSelect" onchange="refreshLibrary()"><option value="All Songs">All Songs</option></select>
+                    <button class="btn-small btn-add" onclick="addCategory()">+</button>
+                    <button class="btn-small btn-del" onclick="removeCategory()">-</button>
+                </div>
+            </div>
+            <div class="file-controls">
+                <label for="audioFile" class="custom-file-upload">📂 Add Songs to Category</label>
+                <input type="file" id="audioFile" multiple accept="audio/*">
+            </div>
+            <div class="library-row">
+                <select id="librarySelect" onchange="loadFromLibrary()"><option value="">📂 MyEqApp Library...</option></select>
+                <button id="deleteBtn" onclick="deleteSong()">🗑️</button>
+            </div>
+            <button id="masterPlayBtn" onclick="forcePlay()">▶</button>
+            <div class="eq-grid">
+                <div class="eq-band"><input type="range" class="vertical" id="eq60" min="-15" max="15" value="0"><span class="band-label">SUB</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq250" min="-15" max="15" value="0"><span class="band-label">LOW</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq1000" min="-15" max="15" value="0"><span class="band-label">MID</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq4000" min="-15" max="15" value="0"><span class="band-label">HIGH</span></div>
+                <div class="eq-band"><input type="range" class="vertical" id="eq12000" min="-15" max="15" value="0"><span class="band-label">AIR</span></div>
+            </div>
+            <audio id="audioPlayer" controls></audio>
+        </div>
+    </div>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // FORCE MANIFEST DETECTION
+                const manifest = document.getElementById('my-manifest');
+                manifest.setAttribute('href', 'manifest.json?v=' + Date.now());
+
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    reg.onupdatefound = () => {
+                        const installingWorker = reg.installing;
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                if (confirm("Update Available (v8.9). Refresh to apply the start_url fix?")) {
+                                    installingWorker.postMessage({ type: 'SKIP_WAITING' });
+                                    window.location.reload();
+                                }
+                            }
+                        };
+                    };
+                });
+            });
+        }
+        
+        // Audio engine logic (Setup DB, Categories, Filters, etc.)
+        const audioPlayer = document.getElementById('audioPlayer');
+        const startBtn = document.getElementById('startBtn');
+        const controlsArea = document.getElementById('controlsArea');
+        const masterPlayBtn = document.getElementById('masterPlayBtn');
+        const librarySelect = document.getElementById('librarySelect');
+        const catSelect = document.getElementById('catSelect');
+        const statusLight = document.getElementById('statusLight');
+        const eqIds = ['eq60', 'eq250', 'eq1000', 'eq4000', 'eq12000'];
+        let audioContext, source, db, filters = [];
+        const frequencies = [60, 250, 1000, 4000, 12000];
+
+        function saveEqSettings() { const settings = {}; eqIds.forEach(id => settings[id] = document.getElementById(id).value); localStorage.setItem('myEqSettings', JSON.stringify(settings)); }
+        function loadEqSettings() { const saved = JSON.parse(localStorage.getItem('myEqSettings')); if (saved) eqIds.forEach(id => { if(saved[id]) document.getElementById(id).value = saved[id]; }); }
+        function loadCategories() { const cats = JSON.parse(localStorage.getItem('myEqCategories')) || ["All Songs"]; catSelect.innerHTML = ""; cats.forEach(c => { const opt = document.createElement('option'); opt.value = c; opt.text = c; catSelect.appendChild(opt); }); }
+        
+        function initAudioEngine() { 
+            try { 
+                loadEqSettings(); loadCategories(); 
+                const AudioContext = window.AudioContext || window.webkitAudioContext; 
+                audioContext = new AudioContext(); 
+                source = audioContext.createMediaElementSource(audioPlayer); 
+                filters = frequencies.map((freq, i) => { 
+                    const f = audioContext.createBiquadFilter(); 
+                    f.type = i === 0 ? 'lowshelf' : i === 4 ? 'highshelf' : 'peaking'; 
+                    f.frequency.value = freq; 
+                    f.gain.value = document.getElementById(eqIds[i]).value; 
+                    return f; 
+                }); 
+                let node = source; 
+                filters.forEach(f => { node.connect(f); node = f; }); 
+                node.connect(audioContext.destination); 
+                startBtn.classList.add('hidden'); 
+                controlsArea.classList.remove('hidden'); 
+                setupDB(); 
+            } catch (e) { alert("Engine Error: " + e.message); } 
+        }
+
+        function setupDB() { 
+            const request = indexedDB.open("MyEqLib", 2); 
+            request.onsuccess = e => { db = e.target.result; refreshLibrary(); }; 
+            request.onupgradeneeded = e => { e.target.result.createObjectStore("songs", { keyPath: "id" }); };
+        }
+
+        function refreshLibrary() { 
+            const store = db.transaction("songs").objectStore("songs"), currentCat = catSelect.value; 
+            store.getAll().onsuccess = e => { 
+                let songs = e.target.result; 
+                if (currentCat !== "All Songs") songs = songs.filter(s => s.category === currentCat); 
+                librarySelect.innerHTML = `<option value="">📂 ${currentCat} Library...</option>`; 
+                songs.forEach(s => { const opt = document.createElement('option'); opt.value = s.id; opt.text = s.name; librarySelect.appendChild(opt); }); 
+            }; 
+        }
+
+        function loadFromLibrary() { 
+            const id = parseFloat(librarySelect.value); 
+            if(!id) return; 
+            db.transaction("songs").objectStore("songs").get(id).onsuccess = e => { 
+                if(e.target.result) { 
+                    audioPlayer.src = URL.createObjectURL(e.target.result.data); 
+                    audioPlayer.load(); 
+                    setTimeout(() => forcePlay(), 200); 
+                } 
+            }; 
+        }
+
+        function forcePlay() { 
+            if(audioContext && audioContext.state === 'suspended') audioContext.resume(); 
+            audioPlayer.paused ? audioPlayer.play() : audioPlayer.pause(); 
+        }
+
+        function updateUI(playing) { 
+            masterPlayBtn.innerHTML = playing ? "⏸" : "▶"; 
+            playing ? statusLight.classList.add('green') : statusLight.classList.remove('green'); 
+        }
+        
+        audioPlayer.onplay = () => updateUI(true); 
+        audioPlayer.onpause = () => updateUI(false); 
+        eqIds.forEach((id, i) => { 
+            document.getElementById(id).oninput = function() { if(filters[i]) filters[i].gain.value = this.value; saveEqSettings(); }; 
+        });
+    </script>
+</body>
+</html>
