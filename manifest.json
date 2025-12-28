@@ -1,0 +1,37 @@
+{
+  "id": "/MyEqualizerApp-/",
+  "start_url": "https://gamache61.github.io/MyEqualizerApp-/index.html",
+  "name": "MyEqApp",
+  "short_name": "MyEqApp",
+  "description": "High-fidelity Equalizer with Custom Categories and Library Backups.",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#121212",
+  "background_color": "#121212"
+}
